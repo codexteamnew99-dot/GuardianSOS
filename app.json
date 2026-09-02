@@ -54,7 +54,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "b5203afd-a691-41d1-9464-625ce881bb61"
+      }
+    },
+    "owner": "codexteamnew"
   }
 }
