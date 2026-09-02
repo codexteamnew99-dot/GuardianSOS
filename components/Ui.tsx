@@ -88,18 +88,16 @@ export function IconButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        {
-          width: 44,
-          height: 44,
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 22,
-          backgroundColor: "#E2E8F0",
-        },
-        pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
-        disabled && { opacity: 0.45 },
-      ]}
+      android_ripple={{ color: "rgba(0,0,0,0.12)", borderless: true, radius: 22 }}
+      style={{
+        width: 44,
+        height: 44,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 22,
+        backgroundColor: "#E2E8F0",
+        opacity: disabled ? 0.45 : 1,
+      }}
     >
       {icon}
     </Pressable>
@@ -174,23 +172,21 @@ export function Btn({
       accessibilityState={{ disabled: off, busy: loading }}
       disabled={off}
       onPress={onPress}
-      style={({ pressed }) => [
-        {
-          minHeight: 56,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          borderRadius: 18,
-          paddingHorizontal: 20,
-          paddingVertical: 14,
-          backgroundColor: palette.backgroundColor,
-          borderWidth: variant === "outline" ? 2 : 0,
-          borderColor: palette.borderColor,
-        },
-        pressed && !off && { opacity: 0.82, transform: [{ scale: 0.98 }] },
-        off && { opacity: 0.52 },
-      ]}
+      android_ripple={{ color: "rgba(0,0,0,0.12)" }}
+      style={{
+        minHeight: 56,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        borderRadius: 18,
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        backgroundColor: palette.backgroundColor,
+        borderWidth: variant === "outline" ? 2 : 0,
+        borderColor: palette.borderColor,
+        opacity: off ? 0.52 : 1,
+      }}
     >
       {loading ? <ActivityIndicator color={palette.color} /> : null}
         <Text style={{ color: palette.color }} className="text-center text-base font-bold">

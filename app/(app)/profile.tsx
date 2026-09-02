@@ -121,10 +121,7 @@ export default function ProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel="Change profile photo"
           onPress={pickPhoto}
-          style={({ pressed }) => [
-            { position: "relative" },
-            pressed && { opacity: 0.75 },
-          ]}
+          style={{ position: "relative" }}
         >
           {photo ? (
             <Image source={{ uri: photo }} style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: "#FFFFFF" }} />

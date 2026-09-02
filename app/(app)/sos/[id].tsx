@@ -246,7 +246,8 @@ export default function ActiveSos() {
             accessibilityRole="button"
             accessibilityLabel="Return to home"
             onPress={() => router.replace("/home")}
-            style={({ pressed }) => [{ height: 42, width: 42, alignItems: "center", justifyContent: "center", borderRadius: 21, backgroundColor: "rgba(255,255,255,0.18)" }, pressed && { opacity: 0.7 }]}
+            android_ripple={{ color: "rgba(255,255,255,0.25)", borderless: true, radius: 21 }}
+            style={{ height: 42, width: 42, alignItems: "center", justifyContent: "center", borderRadius: 21, backgroundColor: "rgba(255,255,255,0.18)" }}
           >
             <ArrowLeft size={21} color="#FFFFFF" />
           </Pressable>

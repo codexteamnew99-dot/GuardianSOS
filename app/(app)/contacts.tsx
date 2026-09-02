@@ -168,7 +168,7 @@ export default function Contacts() {
                   setPhone(c.phone);
                   setRelationship(c.relationship ?? "");
                 }}
-                style={({ pressed }) => [{ padding: 8 }, pressed && { opacity: 0.6 }]}
+                style={{ padding: 8 }}
               >
                 <Edit3 size={19} color="#475569" />
               </Pressable>
@@ -181,7 +181,7 @@ export default function Contacts() {
               accessibilityRole="button"
               accessibilityLabel={`Remove ${c.name}`}
               onPress={() => del(c)}
-              style={({ pressed }) => [{ marginTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 6 }, pressed && { opacity: 0.6 }]}
+              style={{ marginTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 6 }}
             >
               <Trash2 size={15} color="#B91C1C" />
               <Text className="text-sm font-bold text-red-700">Remove contact</Text>

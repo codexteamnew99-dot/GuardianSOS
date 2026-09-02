@@ -59,10 +59,8 @@ export default function HistoryScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Open SOS from ${started.toLocaleDateString()}`}
               onPress={() => router.push({ pathname: "/sos/[id]", params: { id: r.id } })}
-              style={({ pressed }) => [
-                { borderRadius: 24, borderWidth: 1, borderColor: active ? "#FECACA" : "#E2E8F0", backgroundColor: "#FFFFFF", padding: 18 },
-                pressed && { opacity: 0.75, transform: [{ scale: 0.99 }] },
-              ]}
+              android_ripple={{ color: "rgba(0,0,0,0.08)" }}
+              style={{ borderRadius: 24, borderWidth: 1, borderColor: active ? "#FECACA" : "#E2E8F0", backgroundColor: "#FFFFFF", padding: 18 }}
             >
               <View className="flex-row items-start gap-3">
                 <View className={`h-11 w-11 items-center justify-center rounded-2xl ${active ? "bg-red-100" : "bg-emerald-100"}`}>

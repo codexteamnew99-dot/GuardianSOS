@@ -97,11 +97,7 @@ export const SosButton = forwardRef<SosButtonHandle, Props>(function SosButton(
         accessibilityState={{ disabled: disabled || activating }}
         disabled={disabled || activating}
         onPress={onPress}
-        style={({ pressed }) => [
-          { width: SIZE, height: SIZE, alignItems: "center", justifyContent: "center" },
-          pressed && { opacity: 0.86, transform: [{ scale: 0.97 }] },
-          (disabled || activating) && { opacity: 0.58 },
-        ]}
+        style={{ width: SIZE, height: SIZE, alignItems: "center", justifyContent: "center", opacity: disabled || activating ? 0.58 : 1 }}
       >
         <Svg width={SIZE} height={SIZE} style={{ position: "absolute", transform: [{ rotate: "-90deg" }] }}>
           <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke="#FECACA" strokeWidth={STROKE} fill="none" />

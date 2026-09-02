@@ -70,7 +70,7 @@ export default function SignIn() {
                     setError(null);
                     setInfo(null);
                   }}
-                  style={({ pressed }) => [{ flex: 1, alignItems: "center", borderRadius: 14, paddingVertical: 11, backgroundColor: selected ? "#FFFFFF" : "transparent" }, pressed && { opacity: 0.75 }]}
+                  style={{ flex: 1, alignItems: "center", borderRadius: 14, paddingVertical: 11, backgroundColor: selected ? "#FFFFFF" : "transparent" }}
                 >
                   <Text className={`text-sm font-extrabold ${selected ? "text-slate-950" : "text-slate-500"}`}>{item === "in" ? "Sign in" : "Create account"}</Text>
                 </Pressable>
@@ -104,7 +104,6 @@ export default function SignIn() {
               setError(null);
               setInfo(null);
             }}
-            style={({ pressed }) => [pressed && { opacity: 0.6 }]}
           >
             <View className="flex-row items-center gap-1">
               <Text className="text-sm font-extrabold text-red-700">{mode === "in" ? "Create one" : "Sign in"}</Text>

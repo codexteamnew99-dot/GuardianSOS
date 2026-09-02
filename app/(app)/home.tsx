@@ -102,10 +102,8 @@ export default function Home() {
           accessibilityRole="button"
           accessibilityLabel="Open active SOS"
           onPress={() => router.push({ pathname: "/sos/[id]", params: { id: active.id } })}
-          style={({ pressed }) => [
-            { marginBottom: 12, borderRadius: 24, backgroundColor: "#991B1B", padding: 18 },
-            pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-          ]}
+          android_ripple={{ color: "rgba(255,255,255,0.14)" }}
+          style={{ marginBottom: 12, borderRadius: 24, backgroundColor: "#991B1B", padding: 18 }}
         >
           <View className="flex-row items-center gap-3">
             <View className="h-11 w-11 items-center justify-center rounded-full bg-red-500">
@@ -176,10 +174,8 @@ export default function Home() {
               accessibilityRole="button"
               accessibilityLabel={`Open ${tile.label}`}
               onPress={() => router.push(tile.href)}
-              style={({ pressed }) => [
-                { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 22, borderWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", padding: 17 },
-                pressed && { opacity: 0.75, transform: [{ scale: 0.99 }] },
-              ]}
+              android_ripple={{ color: "rgba(0,0,0,0.08)" }}
+              style={{ flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 22, borderWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", padding: 17 }}
             >
               <View className="h-11 w-11 items-center justify-center rounded-2xl bg-slate-100">
                 <Icon size={22} color="#0F172A" />
@@ -196,10 +192,8 @@ export default function Home() {
           accessibilityRole="button"
           accessibilityLabel="Open profile and settings"
           onPress={() => router.push("/profile")}
-          style={({ pressed }) => [
-            { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 22, borderWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", padding: 17 },
-            pressed && { opacity: 0.75, transform: [{ scale: 0.99 }] },
-          ]}
+          android_ripple={{ color: "rgba(0,0,0,0.08)" }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 22, borderWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", padding: 17 }}
         >
           <View className="h-11 w-11 items-center justify-center rounded-2xl bg-slate-100">
             <Settings size={22} color="#0F172A" />
