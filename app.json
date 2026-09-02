@@ -10,7 +10,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.guardiansos.app",
       "infoPlist": {
-        "UIBackgroundModes": ["location", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -49,6 +52,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1881125c-061f-4101-a708-c84e17541a70"
+      }
     }
   }
 }
