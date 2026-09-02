@@ -1,8 +1,8 @@
+import { Alert, Platform, Pressable, Text, View } from "react-native";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
-import { Banner, Btn, Card, Field, H1, Loading, Muted, Screen } from "../../components/Ui";
+import { Edit3, HeartHandshake, Phone, Plus, Share2, Trash2 } from "lucide-react-native";
+import { Banner, Btn, Card, Field, Loading, Muted, PageHeader, Screen, SectionTitle } from "../../components/Ui";
 import { useAuth } from "../../lib/auth";
 import { errMsg, supabase } from "../../lib/supabase";
 import { getFix } from "../../lib/location";
@@ -25,6 +25,7 @@ export default function Contacts() {
 
   const load = useCallback(async () => {
     if (!userId) return;
+    setError(null);
     try {
       const { data, error: e } = await supabase
         .from("emergency_contacts")
@@ -40,7 +41,7 @@ export default function Contacts() {
     }
   }, [userId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const reset = () => {
     setEditing(null);
@@ -48,11 +49,12 @@ export default function Contacts() {
     setPhone("");
     setRelationship("");
   };
+
   const save = async () => {
     setError(null);
     setOk(null);
-    if (!userId) return setError("Session expired. Sign in again.");
-    if (!name.trim() || !phone.trim()) return setError("Name and phone are required.");
+    if (!userId) return setError("Your session expired. Please sign in again.");
+    if (!name.trim() || !phone.trim()) return setError("Add both a name and phone number.");
     setBusy(true);
     try {
       const payload = { name: name.trim(), phone: phone.trim(), relationship: relationship.trim() || null };
@@ -60,7 +62,7 @@ export default function Contacts() {
         ? await supabase.from("emergency_contacts").update(payload).eq("id", editing.id)
         : await supabase.from("emergency_contacts").insert({ ...payload, user_id: userId });
       if (e) throw e;
-      setOk(editing ? "Contact updated." : "Contact added.");
+      setOk(editing ? "Contact updated." : "Contact added to your safety circle.");
       reset();
       await load();
     } catch (e) {
@@ -70,23 +72,28 @@ export default function Contacts() {
     }
   };
 
-  const del = (c: EmergencyContact) =>
-    Alert.alert("Delete contact?", c.name, [
-      { text: "CANCEL", style: "cancel" },
-      {
-        text: "DELETE",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const { error: e } = await supabase.from("emergency_contacts").delete().eq("id", c.id);
-            if (e) throw e;
-            await load();
-          } catch (e) {
-            setError(errMsg(e));
-          }
-        },
-      },
+  const removeContact = async (c: EmergencyContact) => {
+    try {
+      const { error: e } = await supabase.from("emergency_contacts").delete().eq("id", c.id);
+      if (e) throw e;
+      if (editing?.id === c.id) reset();
+      await load();
+      setOk(`${c.name} was removed from your contacts.`);
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  };
+
+  const del = (c: EmergencyContact) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      if (window.confirm(`Remove ${c.name} from your emergency contacts?`)) void removeContact(c);
+      return;
+    }
+    Alert.alert("Remove contact?", `${c.name} will no longer receive SOS alerts.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => void removeContact(c) },
     ]);
+  };
 
   const share = async () => {
     setError(null);
@@ -100,60 +107,105 @@ export default function Contacts() {
       setBusy(false);
     }
   };
+
   return (
     <Screen>
-      <View className="mt-4 flex-row items-center gap-2">
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} className="h-11 w-11 items-center justify-center rounded-full bg-slate-100">
-          <ChevronLeft size={22} color="#0F172A" />
-        </Pressable>
-        <H1>Emergency contacts</H1>
+      <PageHeader title="Emergency contacts" subtitle="People who should know if you need help." onBack={() => router.back()} />
+
+      {error ? <View className="mb-3"><Banner kind="error" text={error} /></View> : null}
+      {ok ? <View className="mb-3"><Banner kind="success" text={ok} /></View> : null}
+
+      <Card className="border-red-100 bg-red-50">
+        <View className="flex-row items-start gap-3">
+          <View className="h-11 w-11 items-center justify-center rounded-2xl bg-red-100">
+            <HeartHandshake size={22} color="#B91C1C" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-base font-extrabold text-red-950">Build your safety circle</Text>
+            <Muted className="mt-1">Your contacts receive your SOS message and location when an alert starts.</Muted>
+          </View>
+        </View>
+      </Card>
+
+      <View className="mb-3 mt-7 flex-row items-center justify-between">
+        <View>
+          <SectionTitle>Your contacts</SectionTitle>
+          <Muted>{rows.length} saved contact{rows.length === 1 ? "" : "s"}</Muted>
+        </View>
+        <View className="h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+          <Text className="text-base font-extrabold text-slate-700">{rows.length}</Text>
+        </View>
       </View>
 
-      <View className="mt-4 gap-3">
-        {error ? <Banner kind="error" text={error} /> : null}
-        {ok ? <Banner kind="success" text={ok} /> : null}
-      </View>
+      {loading ? <Loading label="Loading contacts…" /> : null}
+      {!loading && rows.length === 0 ? (
+        <Card className="items-center border-dashed border-slate-300 bg-white py-8">
+          <View className="h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+            <Plus size={25} color="#475569" />
+          </View>
+          <Text className="mt-4 text-lg font-extrabold text-slate-950">No contacts yet</Text>
+          <Muted className="mt-1 max-w-xs text-center">Add one trusted person below to make SOS alerts useful.</Muted>
+        </Card>
+      ) : null}
 
-      {loading ? <Loading /> : null}
-      {!loading && rows.length === 0 ? <Muted className="mt-4">No contacts yet.</Muted> : null}
-
-      <View className="mt-4 gap-2">
+      <View className="gap-3">
         {rows.map((c) => (
-          <Card key={c.id} className="gap-2">
-            <Text className="text-base font-semibold text-slate-900">{c.name}</Text>
-            <Muted>{c.phone}{c.relationship ? ` · ${c.relationship}` : ""}</Muted>
-            <View className="flex-row gap-2">
-              <Btn title="Call" variant="primary" className="flex-1" onPress={() => callNumber(c.phone)} />
-              <Btn title="Share location" variant="outline" className="flex-1" loading={busy} onPress={share} />
-            </View>
-            <View className="flex-row gap-2">
-              <Btn
-                title="Edit"
-                variant="ghost"
-                className="flex-1"
+          <Card key={c.id}>
+            <View className="flex-row items-start gap-3">
+              <View className="h-11 w-11 items-center justify-center rounded-full bg-slate-900">
+                <Text className="text-lg font-extrabold text-white">{c.name.slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-lg font-extrabold text-slate-950">{c.name}</Text>
+                <Text className="mt-0.5 text-sm font-medium text-slate-500">{c.phone}{c.relationship ? ` · ${c.relationship}` : ""}</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${c.name}`}
                 onPress={() => {
                   setEditing(c);
                   setName(c.name);
                   setPhone(c.phone);
                   setRelationship(c.relationship ?? "");
                 }}
-              />
-              <Btn title="Delete" variant="ghost" className="flex-1" onPress={() => del(c)} />
+                style={({ pressed }) => [{ padding: 8 }, pressed && { opacity: 0.6 }]}
+              >
+                <Edit3 size={19} color="#475569" />
+              </Pressable>
             </View>
+            <View className="mt-4 flex-row gap-2">
+              <Btn title="Call" variant="primary" className="flex-1" accessibilityLabel={`Call ${c.name}`} onPress={() => callNumber(c.phone)} />
+              <Btn title="Share" variant="outline" className="flex-1" accessibilityLabel={`Share location with ${c.name}`} loading={busy} onPress={share} />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${c.name}`}
+              onPress={() => del(c)}
+              style={({ pressed }) => [{ marginTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 6 }, pressed && { opacity: 0.6 }]}
+            >
+              <Trash2 size={15} color="#B91C1C" />
+              <Text className="text-sm font-bold text-red-700">Remove contact</Text>
+            </Pressable>
           </Card>
         ))}
       </View>
 
-      <View className="mt-6 gap-3">
-        <Text className="text-lg font-bold text-slate-900">{editing ? "Edit contact" : "Add contact"}</Text>
-        <Field label="Name" value={name} onChangeText={setName} placeholder="Mom" autoCapitalize="words" />
-        <Field label="Phone" value={phone} onChangeText={setPhone} placeholder="+1 555 0100" keyboardType="phone-pad" />
-        <Field label="Relationship (optional)" value={relationship} onChangeText={setRelationship} placeholder="Mother" autoCapitalize="words" />
-        <Btn title={editing ? "SAVE CHANGES" : "ADD CONTACT"} variant="danger" loading={busy} onPress={save} />
-        {editing ? <Btn title="Cancel" variant="ghost" onPress={reset} /> : null}
+      <View className="mb-3 mt-7">
+        <SectionTitle>{editing ? "Edit contact" : "Add a contact"}</SectionTitle>
+        <Muted className="mt-1">Use a number that can receive texts and calls.</Muted>
+      </View>
+      <Card className="gap-4">
+        <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Mom" autoCapitalize="words" />
+        <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="e.g. +1 555 0100" keyboardType="phone-pad" />
+        <Field label="Relationship (optional)" value={relationship} onChangeText={setRelationship} placeholder="e.g. Parent" autoCapitalize="words" />
+        <Btn title={editing ? "Save changes" : "Add emergency contact"} variant="danger" loading={busy} onPress={save} />
+        {editing ? <Btn title="Cancel editing" variant="ghost" onPress={reset} /> : null}
+      </Card>
+
+      <View className="mb-2 mt-5 flex-row items-center justify-center gap-2">
+        <Share2 size={15} color="#64748B" />
+        <Text className="text-center text-xs font-medium text-slate-500">You can share your location with a contact at any time.</Text>
       </View>
     </Screen>
   );
 }
-
-
