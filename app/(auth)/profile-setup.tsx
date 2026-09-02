@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Btn, Field, H1, Muted, Screen } from "../../components/Ui";
+import { ShieldCheck, UserRound } from "lucide-react-native";
+import { Banner, Btn, Card, Field, Muted, Screen } from "../../components/Ui";
 import { useAuth } from "../../lib/auth";
 import { errMsg, supabase } from "../../lib/supabase";
 
@@ -15,8 +16,8 @@ export default function ProfileSetup() {
 
   const save = async () => {
     setError(null);
-    if (!fullName.trim()) return setError("Your name is required — contacts see it in the alert.");
-    if (!session?.user) return setError("Your session expired. Sign in again.");
+    if (!fullName.trim()) return setError("Add your name so contacts can identify you in an alert.");
+    if (!session?.user) return setError("Your session expired. Please sign in again.");
     setBusy(true);
     try {
       const { error: e } = await supabase
@@ -35,16 +36,27 @@ export default function ProfileSetup() {
 
   return (
     <Screen>
-      <View className="mt-14 gap-2">
-        <H1>Finish your profile</H1>
-        <Muted>Your emergency contacts see this name when you trigger an SOS.</Muted>
+      <View className="mb-7 mt-10 items-center">
+        <View className="h-16 w-16 items-center justify-center rounded-3xl bg-red-600">
+          <UserRound size={32} color="#FFFFFF" />
+        </View>
+        <Text className="mt-5 text-center text-3xl font-extrabold tracking-tight text-slate-950">Almost ready</Text>
+        <Muted className="mt-2 max-w-sm text-center">Add a few details so your safety circle knows who is sending an alert.</Muted>
       </View>
-      <View className="mt-8 gap-4">
+
+      <Card className="gap-5">
+        <View className="flex-row items-center gap-3 rounded-2xl bg-emerald-50 p-4">
+          <ShieldCheck size={22} color="#15803D" />
+          <Text className="flex-1 text-sm font-semibold leading-5 text-emerald-800">Your details stay private and are used to identify you to your emergency contacts.</Text>
+        </View>
         {error ? <Banner kind="error" text={error} /> : null}
-        <Field label="Full name" value={fullName} onChangeText={setFullName} placeholder="Alex Doe" autoCapitalize="words" />
-        <Field label="Phone (optional)" value={phone} onChangeText={setPhone} placeholder="+1 555 0100" keyboardType="phone-pad" />
-        <Btn title="Continue" variant="danger" loading={busy} onPress={save} />
-        <Btn title="Sign out" variant="ghost" onPress={() => signOut().then(() => router.replace("/sign-in"))} />
+        <Field label="Your full name" value={fullName} onChangeText={setFullName} placeholder="e.g. Alex Doe" autoCapitalize="words" />
+        <Field label="Your phone number (optional)" value={phone} onChangeText={setPhone} placeholder="e.g. +1 555 0100" keyboardType="phone-pad" />
+        <Btn title="Continue to GuardianSOS" variant="danger" loading={busy} onPress={save} />
+      </Card>
+
+      <View className="mt-5">
+        <Btn title="Sign out" variant="ghost" onPress={() => void signOut().then(() => router.replace("/sign-in"))} />
       </View>
     </Screen>
   );

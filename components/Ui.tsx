@@ -1,61 +1,150 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import React from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+  type PressableProps,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ChevronLeft } from "lucide-react-native";
+
+type ReactNode = React.ReactNode;
 
 export function Screen({
   children,
   scroll = true,
   className = "",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   scroll?: boolean;
   className?: string;
 }) {
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top", "left", "right"]}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={["top", "left", "right"]}>
       {scroll ? (
-        <ScrollView className={`flex-1 px-5 ${className}`} contentContainerStyle={{ paddingBottom: 32 }}>
-          {children}
+        <ScrollView
+          className={`flex-1 ${className}`}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="w-full self-center" style={{ maxWidth: 680 }}>
+            {children}
+          </View>
         </ScrollView>
       ) : (
-        <View className={`flex-1 px-5 ${className}`}>{children}</View>
+        <View className={`flex-1 px-5 ${className}`}>
+          <View className="w-full flex-1 self-center" style={{ maxWidth: 680 }}>
+            {children}
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
 }
 
-export function H1({ children }: { children: React.ReactNode }) {
-  return <Text className="text-3xl font-bold text-slate-900">{children}</Text>;
-}
-
-export function Muted({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <Text className={`text-base text-slate-500 ${className}`}>{children}</Text>;
-}
-
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <View className={`rounded-2xl border border-slate-200 bg-white p-4 ${className}`}>{children}</View>;
-}
-
-export function Loading({ label }: { label?: string }) {
+export function PageHeader({
+  title,
+  subtitle,
+  onBack,
+  right,
+}: {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  right?: ReactNode;
+}) {
   return (
-    <View className="items-center justify-center gap-3 py-10">
-      <ActivityIndicator size="large" color="#DC2626" />
-      {label ? <Muted>{label}</Muted> : null}
+    <View className="mb-5 mt-4 flex-row items-center justify-between gap-3">
+      <View className="flex-1 flex-row items-center gap-3">
+        {onBack ? <IconButton label="Go back" onPress={onBack} icon={<ChevronLeft size={22} color="#0F172A" />} /> : null}
+        <View className="flex-1">
+          <Text className="text-3xl font-extrabold tracking-tight text-slate-950">{title}</Text>
+          {subtitle ? <Text className="mt-1 text-base leading-6 text-slate-500">{subtitle}</Text> : null}
+        </View>
+      </View>
+      {right}
     </View>
   );
 }
+
+export function IconButton({
+  label,
+  onPress,
+  icon,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  icon: ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          width: 44,
+          height: 44,
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 22,
+          backgroundColor: "#E2E8F0",
+        },
+        pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+        disabled && { opacity: 0.45 },
+      ]}
+    >
+      {icon}
+    </Pressable>
+  );
+}
+
+export function H1({ children }: { children: ReactNode }) {
+  return <Text className="text-3xl font-extrabold tracking-tight text-slate-950">{children}</Text>;
+}
+
+export function SectionTitle({ children }: { children: ReactNode }) {
+  return <Text className="text-xl font-bold text-slate-950">{children}</Text>;
+}
+
+export function Muted({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <Text className={`text-base leading-6 text-slate-500 ${className}`}>{children}</Text>;
+}
+
+export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <View
+      className={`rounded-3xl border border-slate-200 bg-white p-5 ${className}`}
+      style={{ shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 2 }}
+    >
+      {children}
+    </View>
+  );
+}
+
+export function Loading({ label = "Loading…" }: { label?: string }) {
+  return (
+    <View className="items-center justify-center gap-3 py-14">
+      <ActivityIndicator size="large" color="#DC2626" />
+      <Muted>{label}</Muted>
+    </View>
+  );
+}
+
 type BtnVariant = "primary" | "danger" | "outline" | "ghost";
 
-const BTN: Record<BtnVariant, string> = {
-  primary: "bg-slate-900",
-  danger: "bg-red-600",
-  outline: "bg-white border-2 border-slate-300",
-  ghost: "bg-slate-100",
-};
-const BTN_TEXT: Record<BtnVariant, string> = {
-  primary: "text-white",
-  danger: "text-white",
-  outline: "text-slate-900",
-  ghost: "text-slate-900",
+const BUTTON_STYLES: Record<BtnVariant, { backgroundColor: string; borderColor: string; color: string }> = {
+  primary: { backgroundColor: "#0F172A", borderColor: "#0F172A", color: "#FFFFFF" },
+  danger: { backgroundColor: "#DC2626", borderColor: "#DC2626", color: "#FFFFFF" },
+  outline: { backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", color: "#0F172A" },
+  ghost: { backgroundColor: "#F1F5F9", borderColor: "#F1F5F9", color: "#0F172A" },
 };
 
 export function Btn({
@@ -64,32 +153,54 @@ export function Btn({
   variant = "primary",
   loading = false,
   disabled = false,
+  accessibilityLabel,
   className = "",
 }: {
   title: string;
-  onPress?: () => void;
+  onPress?: PressableProps["onPress"];
   variant?: BtnVariant;
   loading?: boolean;
   disabled?: boolean;
+  accessibilityLabel?: string;
   className?: string;
 }) {
   const off = disabled || loading;
+  const palette = BUTTON_STYLES[variant];
   return (
-    <Pressable
+    <View className={className}>
+      <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ disabled: off, busy: loading }}
       disabled={off}
       onPress={onPress}
-      className={`min-h-14 flex-row items-center justify-center gap-2 rounded-2xl px-5 py-4 ${BTN[variant]} ${
-        off ? "opacity-50" : ""
-      } ${className}`}
+      style={({ pressed }) => [
+        {
+          minHeight: 56,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          borderRadius: 18,
+          paddingHorizontal: 20,
+          paddingVertical: 14,
+          backgroundColor: palette.backgroundColor,
+          borderWidth: variant === "outline" ? 2 : 0,
+          borderColor: palette.borderColor,
+        },
+        pressed && !off && { opacity: 0.82, transform: [{ scale: 0.98 }] },
+        off && { opacity: 0.52 },
+      ]}
     >
-      {loading ? <ActivityIndicator color={variant === "outline" || variant === "ghost" ? "#0F172A" : "#fff"} /> : null}
-      <Text className={`text-center text-lg font-semibold ${BTN_TEXT[variant]}`}>{title}</Text>
-    </Pressable>
+      {loading ? <ActivityIndicator color={palette.color} /> : null}
+        <Text style={{ color: palette.color }} className="text-center text-base font-bold">
+          {title}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
+
 export function Field({
   label,
   value,
@@ -108,10 +219,10 @@ export function Field({
   autoCapitalize?: "none" | "words";
 }) {
   return (
-    <View className="gap-1.5">
-      <Text className="text-sm font-semibold text-slate-700">{label}</Text>
+    <View className="gap-2">
+      <Text className="text-sm font-bold text-slate-700">{label}</Text>
       <TextInput
-        className="min-h-14 rounded-xl border border-slate-300 bg-white px-4 text-lg text-slate-900"
+        className="min-h-14 rounded-2xl border border-slate-300 bg-white px-4 text-base text-slate-950"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -126,27 +237,20 @@ export function Field({
 }
 
 export function Banner({ kind, text }: { kind: "error" | "success" | "warn" | "info"; text: string }) {
-  const style =
-    kind === "error"
-      ? "bg-red-50 border-red-300"
-      : kind === "success"
-        ? "bg-green-50 border-green-300"
-        : kind === "warn"
-          ? "bg-amber-50 border-amber-300"
-          : "bg-slate-50 border-slate-300";
-  const textStyle =
-    kind === "error"
-      ? "text-red-700"
-      : kind === "success"
-        ? "text-green-700"
-        : kind === "warn"
-          ? "text-amber-800"
-          : "text-slate-700";
+  const colors = {
+    error: { backgroundColor: "#FEF2F2", borderColor: "#FECACA", color: "#B91C1C", marker: "!" },
+    success: { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0", color: "#15803D", marker: "✓" },
+    warn: { backgroundColor: "#FFFBEB", borderColor: "#FDE68A", color: "#A16207", marker: "!" },
+    info: { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", color: "#1D4ED8", marker: "i" },
+  }[kind];
   return (
-    <View className={`rounded-xl border px-4 py-3 ${style}`}>
-      <Text className={`text-base font-medium ${textStyle}`}>{text}</Text>
+    <View className="flex-row items-start gap-3 rounded-2xl border px-4 py-3" style={colors}>
+      <View className="mt-0.5 h-6 w-6 items-center justify-center rounded-full" style={{ backgroundColor: colors.color }}>
+        <Text className="text-sm font-extrabold text-white">{colors.marker}</Text>
+      </View>
+      <Text className="flex-1 text-sm font-semibold leading-5" style={{ color: colors.color }}>
+        {text}
+      </Text>
     </View>
   );
 }
-
-
