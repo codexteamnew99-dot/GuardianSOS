@@ -1,51 +1,95 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Platform, ScrollView, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import type * as Loc from "expo-location";
 import { Banner, Btn, Card, Loading, Muted } from "../../../components/Ui";
 import { SosMap } from "../../../components/SosMap";
-import { useAuth } from "../../../lib/auth";
 import { errMsg, supabase } from "../../../lib/supabase";
-import { acceptedGuardians, notifyGuardians, pushLocation, resolveSos, type NotifyResult } from "../../../lib/sos";
+import { pushLocation, resolveSos } from "../../../lib/sos";
 import { watchFix, type Fix } from "../../../lib/location";
-import { callNumber, shareLocation } from "../../../lib/share";
-import type { SosEvent } from "../../../lib/types";
+import { emergencyMessage, shareLocation } from "../../../lib/share";
+import {
+  alertEmergencyContacts,
+  callAllContacts,
+  callBanner,
+  dialPrimaryContact,
+  loadEmergencyContacts,
+  sendEmergencySMS,
+  smsBanner,
+  type CallResult,
+  type SmsResult,
+} from "../../../lib/emergencyAlert";
+import type { EmergencyContact, SosEvent } from "../../../lib/types";
 
 export default function ActiveSos() {
   const { id, fresh } = useLocalSearchParams<{ id: string; fresh?: string }>();
   const router = useRouter();
-  const { session, profile } = useAuth();
   const [event, setEvent] = useState<SosEvent | null>(null);
   const [fix, setFix] = useState<Fix | null>(null);
   const [trail, setTrail] = useState<{ lat: number; lng: number }[]>([]);
   const [lastAt, setLastAt] = useState<number | null>(null);
   const [, setTick] = useState(0);
-  const [notify, setNotify] = useState<NotifyResult | null>(null);
-  const [notifying, setNotifying] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [guardianPhone, setGuardianPhone] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [sms, setSms] = useState<SmsResult | null>(null);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [call, setCall] = useState<CallResult | null>(null);
+  const [callLoading, setCallLoading] = useState(false);
+  const [callProgress, setCallProgress] = useState<string | null>(null);
+  const [callingId, setCallingId] = useState<string | null>(null);
   const watcher = useRef<Loc.LocationSubscription | null>(null);
+  const contactAlertedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const runNotify = useCallback(
-    async (ev: SosEvent) => {
-      setNotifying(true);
+  const applyAlertResult = (smsRes: SmsResult, callRes: CallResult, rows?: EmergencyContact[]) => {
+    setSms(smsRes);
+    setCall(callRes);
+    if (rows) setContacts(rows);
+  };
+
+  const onCallProgress = useCallback((dialed: number, total: number, name: string) => {
+    setCallProgress(`Calling ${name} (${dialed + 1} of ${total})…`);
+  }, []);
+
+  const runContactAlert = useCallback(
+    async (ev: SosEvent, force = false) => {
+      if (!force && contactAlertedRef.current === ev.id) return;
+      contactAlertedRef.current = ev.id;
+      const lat = ev.lat;
+      const lng = ev.lng;
+      if (lat == null || lng == null) {
+        applyAlertResult(
+          { path: null, sent: 0, failed: 0, error: "No GPS yet — SMS not sent." },
+          { path: null, dialed: 0, total: 0, error: "No GPS yet — call not placed." }
+        );
+        return;
+      }
+      setSmsLoading(true);
+      setCallLoading(true);
       try {
-        setNotify(await notifyGuardians(ev, profile?.full_name || "Someone"));
+        const result = await alertEmergencyContacts(ev.user_id, ev.id, lat, lng, { force, onCallProgress });
+        if (result.skipped) return;
+        applyAlertResult(result.sms, result.call, result.contacts);
       } catch (e) {
-        setNotify({ guardians: 0, sent: 0, failed: 0, error: errMsg(e) });
+        applyAlertResult(
+          { path: null, sent: 0, failed: 0, error: errMsg(e) },
+          { path: null, dialed: 0, total: 0, error: errMsg(e) }
+        );
       } finally {
-        setNotifying(false);
+        setSmsLoading(false);
+        setCallLoading(false);
+        setCallProgress(null);
       }
     },
-    [profile?.full_name]
+    [onCallProgress]
   );
-  // load event + guardian phone; notify on a freshly created SOS
+
+  // load event + contacts; SMS and the call queue fire in parallel on a freshly created SOS
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -60,22 +104,17 @@ export default function ActiveSos() {
           setTrail([{ lat: ev.lat, lng: ev.lng }]);
           setLastAt(new Date(ev.started_at).getTime());
         }
-        if (fresh === "1" && ev.status === "ACTIVE") await runNotify(ev);
 
-        const gs = await acceptedGuardians(ev.user_id);
-        const ids = gs.map((g) => g.guardian_user_id!).filter(Boolean);
-        let phone: string | null = gs.find((g) => g.invite_phone)?.invite_phone ?? null;
-        if (ids.length) {
-          const { data: profs } = await supabase.from("profiles").select("phone").in("id", ids).not("phone", "is", null);
-          phone = (profs?.[0] as { phone?: string } | undefined)?.phone ?? phone;
-        }
-        if (!cancelled) setGuardianPhone(phone);
+        if (fresh === "1" && ev.status === "ACTIVE") void runContactAlert(ev);
+
+        const rows = await loadEmergencyContacts(ev.user_id).catch(() => [] as EmergencyContact[]);
+        if (!cancelled) setContacts(rows);
       } catch (e) {
         if (!cancelled) setError(errMsg(e));
       }
     })();
     return () => { cancelled = true; };
-  }, [id, fresh, runNotify]);
+  }, [id, fresh, runContactAlert]);
 
   // live location while ACTIVE
   useEffect(() => {
@@ -113,9 +152,51 @@ export default function ActiveSos() {
     }
   };
 
-  const onCall = async () => {
-    if (!guardianPhone) return setError("No guardian phone number saved. Add one in Guardians or Contacts.");
-    await callNumber(guardianPhone);
+  const retrySms = async () => {
+    if (!event || event.lat == null || event.lng == null) {
+      setSms({ path: null, sent: 0, failed: 0, error: "No GPS yet — SMS not sent." });
+      return;
+    }
+    setSmsLoading(true);
+    try {
+      const rows = contacts.length ? contacts : await loadEmergencyContacts(event.user_id);
+      setContacts(rows);
+      setSms(await sendEmergencySMS(rows, emergencyMessage(event.lat, event.lng)));
+    } catch (e) {
+      setSms({ path: null, sent: 0, failed: 0, error: errMsg(e) });
+    } finally {
+      setSmsLoading(false);
+    }
+  };
+
+  const retryCalls = async () => {
+    const rows = contacts.length ? contacts : await loadEmergencyContacts(event!.user_id).catch(() => []);
+    if (rows.length === 0) {
+      setCall({ path: null, dialed: 0, total: 0, error: "No emergency contact to call." });
+      return;
+    }
+    setContacts(rows);
+    setCallLoading(true);
+    try {
+      setCall(await callAllContacts(rows, onCallProgress));
+    } catch (e) {
+      setCall({ path: null, name: rows[0].name, dialed: 0, total: rows.length, error: errMsg(e) });
+    } finally {
+      setCallLoading(false);
+      setCallProgress(null);
+    }
+  };
+
+  const onCallContact = async (c: EmergencyContact) => {
+    setCallingId(c.id);
+    try {
+      const res = await dialPrimaryContact(c.phone, c.name);
+      if (res.error) setCall(res);
+    } catch (e) {
+      setCall({ path: "tel", name: c.name, dialed: 0, total: 1, error: errMsg(e) });
+    } finally {
+      setCallingId(null);
+    }
   };
 
   const doResolve = async () => {
@@ -127,7 +208,7 @@ export default function ActiveSos() {
       watcher.current = null;
       const updated = await resolveSos(event.id);
       setEvent(updated);
-      Alert.alert("SOS resolved", "Your guardians can see that you are safe.", [
+      Alert.alert("SOS resolved", "Location sharing has stopped.", [
         { text: "OK", onPress: () => router.replace("/home") },
       ]);
     } catch (e) {
@@ -138,19 +219,16 @@ export default function ActiveSos() {
   };
 
   const onResolve = () =>
-    Alert.alert("Resolve this SOS?", "Location sharing stops and your guardians are marked as informed.", [
+    Alert.alert("Resolve this SOS?", "Location sharing stops and the emergency screen closes.", [
       { text: "CANCEL", style: "cancel" },
       { text: "RESOLVE", style: "destructive", onPress: doResolve },
     ]);
 
   const secondsAgo = lastAt ? Math.max(0, Math.round((Date.now() - lastAt) / 1000)) : null;
-  const notifyText = notifying
-    ? "Notifying guardians…"
-    : notify?.error
-      ? `Guardians notification failed — ${notify.error}`
-      : notify
-        ? `${notify.sent} of ${notify.guardians} guardian device(s) notified`
-        : null;
+  const smsUi = smsBanner(sms, smsLoading);
+  const callUi = callBanner(call, callLoading, callProgress);
+  // On web nothing is auto-dialed, so every contact needs its own button.
+  const remaining = Platform.OS === "web" ? contacts : contacts.slice(1);
 
   if (!event) {
     return (
@@ -165,17 +243,31 @@ export default function ActiveSos() {
       <View className={`px-5 pb-4 pt-14 ${isActive ? "bg-red-600" : "bg-slate-800"}`}>
         <Text className="text-2xl font-extrabold text-white">{isActive ? "SOS ACTIVE" : "SOS RESOLVED"}</Text>
         <Text className="mt-1 text-base text-red-50">
-          {isActive ? "Your guardians can see your live location" : "Location sharing has stopped"}
+          {isActive ? "Your emergency contacts have been alerted" : "Location sharing has stopped"}
         </Text>
       </View>
 
-      <View className="flex-1 gap-3 px-5 pt-4">
+      <ScrollView className="flex-1 px-5 pt-4" contentContainerStyle={{ paddingBottom: 32, gap: 12 }}>
         {error ? <Banner kind="error" text={error} /> : null}
-        {notifyText ? (
-          <Banner kind={notify?.error ? "warn" : "success"} text={notifyText} />
+
+        {smsUi.status !== "idle" ? (
+          <Banner
+            kind={smsUi.status === "error" ? "warn" : smsUi.status === "loading" ? "info" : "success"}
+            text={smsUi.message}
+          />
         ) : null}
-        {notify?.error && isActive ? (
-          <Btn title="RETRY GUARDIAN ALERT" variant="outline" loading={notifying} onPress={() => runNotify(event)} />
+        {smsUi.status === "error" && isActive ? (
+          <Btn title="RETRY SMS" variant="outline" loading={smsLoading} onPress={retrySms} />
+        ) : null}
+
+        {callUi.status !== "idle" ? (
+          <Banner
+            kind={callUi.status === "error" ? "warn" : callUi.status === "loading" ? "info" : "success"}
+            text={callUi.message}
+          />
+        ) : null}
+        {callUi.status === "error" && isActive ? (
+          <Btn title="RETRY CALLS" variant="outline" loading={callLoading} onPress={retryCalls} />
         ) : null}
 
         <SosMap lat={fix?.lat ?? null} lng={fix?.lng ?? null} trail={trail} label="You are here" height={240} />
@@ -187,8 +279,29 @@ export default function ActiveSos() {
           </Text>
         </Card>
 
-        <View className="gap-3 pb-8">
-          <Btn title="CALL GUARDIAN" variant="primary" onPress={onCall} />
+        {isActive && remaining.length > 0 ? (
+          <Card className="gap-2">
+            <Text className="text-base font-semibold text-slate-900">
+              {Platform.OS === "web" ? "Call contacts" : "Call other contacts"}
+            </Text>
+            <Muted>
+              {Platform.OS === "web"
+                ? "Tap a contact to open your dialer."
+                : "Contacts are dialed one after another automatically. Tap to call anyone again."}
+            </Muted>
+            {remaining.map((c) => (
+              <Btn
+                key={c.id}
+                title={`Call ${c.name}`}
+                variant="primary"
+                loading={callingId === c.id}
+                onPress={() => onCallContact(c)}
+              />
+            ))}
+          </Card>
+        ) : null}
+
+        <View className="gap-3">
           <Btn title="SHARE LOCATION" variant="outline" onPress={onShare} />
           {isActive ? (
             <Btn title="RESOLVE SOS" variant="danger" loading={resolving} onPress={onResolve} />
@@ -196,10 +309,7 @@ export default function ActiveSos() {
             <Btn title="BACK TO HOME" variant="ghost" onPress={() => router.replace("/home")} />
           )}
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
-
-
-

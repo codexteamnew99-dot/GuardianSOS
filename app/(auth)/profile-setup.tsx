@@ -15,7 +15,7 @@ export default function ProfileSetup() {
 
   const save = async () => {
     setError(null);
-    if (!fullName.trim()) return setError("Your name is required — guardians see it in the alert.");
+    if (!fullName.trim()) return setError("Your name is required — contacts see it in the alert.");
     if (!session?.user) return setError("Your session expired. Sign in again.");
     setBusy(true);
     try {
@@ -37,7 +37,7 @@ export default function ProfileSetup() {
     <Screen>
       <View className="mt-14 gap-2">
         <H1>Finish your profile</H1>
-        <Muted>Your guardians see this name when you trigger an SOS.</Muted>
+        <Muted>Your emergency contacts see this name when you trigger an SOS.</Muted>
       </View>
       <View className="mt-8 gap-4">
         {error ? <Banner kind="error" text={error} /> : null}

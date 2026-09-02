@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, Switch, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { ChevronLeft } from "lucide-react-native";
@@ -7,7 +7,8 @@ import { Banner, Btn, Card, Field, H1, Muted, Screen } from "../../components/Ui
 import { useAuth } from "../../lib/auth";
 import { errMsg, supabase } from "../../lib/supabase";
 import { permissionStatus, ensureLocationPermission } from "../../lib/location";
-import { notificationPermissionStatus, registerPushToken } from "../../lib/push";
+import { ensureEmergencyPermissions, emergencyPermissionStatus } from "../../lib/emergencyAlert";
+import { getShakeToSosEnabled, setShakeToSosEnabled } from "../../lib/settings";
 
 export default function ProfileScreen() {
   const { session, profile, refreshProfile, signOut } = useAuth();
@@ -16,18 +17,20 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState(profile?.phone ?? "");
   const [photo, setPhoto] = useState(profile?.photo_url ?? "");
   const [locPerm, setLocPerm] = useState("checking…");
-  const [notifPerm, setNotifPerm] = useState("checking…");
+  const [commsPerm, setCommsPerm] = useState("checking…");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [shakeToSos, setShakeToSos] = useState(true);
 
   const refreshPerms = useCallback(async () => {
     setLocPerm(await permissionStatus());
-    setNotifPerm(await notificationPermissionStatus());
+    setCommsPerm(await emergencyPermissionStatus());
   }, []);
 
   useEffect(() => {
     refreshPerms();
+    getShakeToSosEnabled().then(setShakeToSos);
   }, [refreshPerms]);
 
   useEffect(() => {
@@ -74,12 +77,15 @@ export default function ProfileScreen() {
     }
   };
 
-  const enableNotifications = async () => {
+  const enableComms = async () => {
     setError(null);
-    if (!session?.user) return;
     try {
-      await registerPushToken(session.user.id);
-      setOk("Push notifications ready on this device.");
+      const res = await ensureEmergencyPermissions();
+      setOk(
+        res.sms && res.call
+          ? "SMS + calling ready — SOS will alert contacts without asking again."
+          : "Some access was denied. SOS will fall back to the SMS composer and the dialer."
+      );
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -124,14 +130,36 @@ export default function ProfileScreen() {
       </View>
 
       <View className="mt-6 gap-3">
+        <Text className="text-lg font-bold text-slate-900">Settings</Text>
+        <Card>
+          <View className="flex-row items-center justify-between gap-3">
+            <View className="flex-1 pr-3">
+              <Text className="text-lg font-semibold text-slate-900">Shake to trigger SOS</Text>
+              <Muted>Two quick shakes open the SOS confirmation</Muted>
+            </View>
+            <Switch
+              accessibilityLabel="Shake to trigger SOS"
+              value={shakeToSos}
+              onValueChange={(on) => {
+                setShakeToSos(on);
+                setShakeToSosEnabled(on);
+              }}
+              trackColor={{ false: "#CBD5E1", true: "#FECACA" }}
+              thumbColor={shakeToSos ? "#DC2626" : "#F8FAFC"}
+            />
+          </View>
+        </Card>
+      </View>
+
+      <View className="mt-6 gap-3">
         <Text className="text-lg font-bold text-slate-900">Permissions</Text>
         <Card className="gap-2">
           <Muted>Location: {locPerm}</Muted>
           {locPerm !== "granted" ? <Btn title="Enable location" variant="outline" onPress={enableLocation} /> : null}
         </Card>
         <Card className="gap-2">
-          <Muted>Notifications: {notifPerm}</Muted>
-          <Btn title="Enable / refresh push" variant="outline" onPress={enableNotifications} />
+          <Muted>SMS + calling: {commsPerm}</Muted>
+          <Btn title="Grant SMS + call access" variant="outline" onPress={enableComms} />
         </Card>
       </View>
 

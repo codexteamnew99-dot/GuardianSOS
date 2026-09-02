@@ -1,37 +1,12 @@
 import "../global.css";
-import { useEffect } from "react";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { Text, View } from "react-native";
 import { AuthProvider } from "../lib/auth";
 import { supabaseConfigured } from "../lib/supabase";
-import { isExpoGo } from "../lib/push";
-
-function useNotificationRouting() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Expo Go can't receive remote push; the Supabase Realtime alert in (app)/_layout handles routing there.
-    if (isExpoGo) return;
-    const Notifications = require("expo-notifications") as typeof import("expo-notifications");
-    const go = (data: unknown) => {
-      const sosId = (data as { sosEventId?: string })?.sosEventId;
-      if (typeof sosId === "string" && sosId) router.push({ pathname: "/guardian/[id]", params: { id: sosId } });
-    };
-    // cold start: app launched by tapping a notification
-    Notifications.getLastNotificationResponseAsync().then((res) => {
-      if (res) go(res.notification.request.content.data);
-    });
-    const sub = Notifications.addNotificationResponseReceivedListener((res) =>
-      go(res.notification.request.content.data)
-    );
-    return () => sub.remove();
-  }, [router]);
-}
 
 function Root() {
-  useNotificationRouting();
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#fff" } }}>
       <Stack.Screen name="index" />
@@ -40,6 +15,7 @@ function Root() {
     </Stack>
   );
 }
+
 export default function RootLayout() {
   if (!supabaseConfigured) {
     return (
@@ -61,4 +37,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-

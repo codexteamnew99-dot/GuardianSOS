@@ -1,9 +1,6 @@
 import { getFix, type Fix } from "./location";
-import { sendExpoPush } from "./push";
 import { supabase } from "./supabase";
-import type { Guardian, SosEvent } from "./types";
-
-export type NotifyResult = { guardians: number; sent: number; failed: number; error?: string };
+import type { SosEvent } from "./types";
 
 export async function getActiveSos(userId: string): Promise<SosEvent | null> {
   const { data, error } = await supabase
@@ -18,38 +15,6 @@ export async function getActiveSos(userId: string): Promise<SosEvent | null> {
   return (data as SosEvent) ?? null;
 }
 
-export async function acceptedGuardians(ownerId: string): Promise<Guardian[]> {
-  const { data, error } = await supabase
-    .from("guardians")
-    .select("*")
-    .eq("owner_id", ownerId)
-    .eq("status", "ACCEPTED")
-    .not("guardian_user_id", "is", null);
-  if (error) throw error;
-  return (data ?? []) as Guardian[];
-}
-
-/** Inserts notification rows + sends Expo push. Push failures are reported, not thrown. */
-export async function notifyGuardians(event: SosEvent, senderName: string): Promise<NotifyResult> {
-  const guardians = await acceptedGuardians(event.user_id);
-  const ids = guardians.map((g) => g.guardian_user_id!).filter(Boolean);
-  if (ids.length === 0) return { guardians: 0, sent: 0, failed: 0, error: "You have no accepted guardians yet." };
-
-  const title = "🚨 EMERGENCY ALERT";
-  const body = `${senderName} has activated GuardianSOS. Emergency location available. Tap to view.`;
-
-  const { error: nErr } = await supabase
-    .from("notifications")
-    .insert(ids.map((uid) => ({ user_id: uid, sos_event_id: event.id, type: "SOS", title, body })));
-  if (nErr) return { guardians: ids.length, sent: 0, failed: ids.length, error: nErr.message };
-
-  const { data: tokens, error: tErr } = await supabase.from("device_tokens").select("token").in("user_id", ids);
-  if (tErr) return { guardians: ids.length, sent: 0, failed: ids.length, error: tErr.message };
-
-  const list = (tokens ?? []).map((t) => (t as { token: string }).token);
-  const res = await sendExpoPush(list, { title, body, data: { sosEventId: event.id, type: "SOS" } });
-  return { guardians: ids.length, sent: res.sent, failed: res.failed, error: res.error };
-}
 /**
  * GPS -> sos_events row -> first location row. Throws on any hard failure so the UI
  * never shows "SOS ACTIVE" for a write that did not land.
