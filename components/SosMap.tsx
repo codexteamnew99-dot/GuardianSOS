@@ -1,5 +1,6 @@
 import { Component, useEffect, useRef, type ReactNode } from "react";
 import { Linking, Platform, Pressable, Text, View } from "react-native";
+import Constants from "expo-constants";
 import type MapViewType from "react-native-maps";
 import { mapsUrl } from "../lib/share";
 
@@ -10,6 +11,11 @@ try {
 } catch {
   Maps = null;
 }
+
+// react-native-maps hard-crashes (native, uncatchable by JS error boundaries) at mount on
+// Android when no Google Maps API key is in the manifest. Only mount it when a key exists.
+const androidMapsKey = (Constants.expoConfig as any)?.android?.config?.googleMaps?.apiKey;
+const nativeMapAvailable = Platform.OS === "ios" || (Platform.OS === "android" && !!androidMapsKey);
 
 class MapBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -26,7 +32,7 @@ function Fallback({ lat, lng, height }: { lat: number; lng: number; height: numb
     <View style={{ height }} className="items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4">
       <Text className="text-lg font-semibold text-slate-900">{`${lat.toFixed(5)}, ${lng.toFixed(5)}`}</Text>
       <Text className="text-center text-sm text-slate-500">
-        In-app map needs a development build. The location itself is live.
+        Live location is active and updating. Tap to open it in Google Maps.
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -99,7 +105,7 @@ export function SosMap({
       </View>
     );
   }
-  if (!Maps || Platform.OS === "web") return <Fallback lat={lat} lng={lng} height={height} />;
+  if (!Maps || Platform.OS === "web" || !nativeMapAvailable) return <Fallback lat={lat} lng={lng} height={height} />;
   return (
     <MapBoundary fallback={<Fallback lat={lat} lng={lng} height={height} />}>
       <NativeMap lat={lat} lng={lng} trail={trail} label={label} height={height} />
