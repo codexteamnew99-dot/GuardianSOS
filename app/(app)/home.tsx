@@ -7,6 +7,7 @@ import { SosButton, type SosButtonHandle } from "../../components/SosButton";
 import { useAuth } from "../../lib/auth";
 import { errMsg, supabase } from "../../lib/supabase";
 import { activateSos, getActiveSos } from "../../lib/sos";
+import { ensureEmergencyPermissions } from "../../lib/emergencyAlert";
 import { useShakeToSOS } from "../../lib/useShakeToSOS";
 import type { SosEvent } from "../../lib/types";
 
@@ -64,6 +65,7 @@ export default function Home() {
         return;
       }
       setStatus("Getting your GPS location…");
+      await ensureEmergencyPermissions().catch(() => {});
       const { event } = await activateSos(userId);
       setStatus(null);
       router.push({ pathname: "/sos/[id]", params: { id: event.id, fresh: "1" } });

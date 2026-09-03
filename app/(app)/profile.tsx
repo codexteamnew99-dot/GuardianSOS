@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, Switch, Text, View } from "react-native";
+import { Image, Linking, Platform, Pressable, Switch, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, CheckCircle2, LogOut, ShieldCheck, UserRound } from "lucide-react-native";
@@ -102,7 +102,14 @@ export default function ProfileScreen() {
     setError(null);
     try {
       const res = await ensureEmergencyPermissions();
-      setOk(res.sms && res.call ? "SMS and calling are ready." : "Some access was denied. SOS will use browser fallbacks where available.");
+      if (res.sms && res.call) {
+        setOk("SMS and calling are ready.");
+      } else if (Platform.OS === "android") {
+        setError("SMS/calling is blocked. Opening Settings — allow SMS and Phone, then return.");
+        await Linking.openSettings().catch(() => {});
+      } else {
+        setOk("Some access was denied. SOS will use fallbacks where available.");
+      }
     } catch (e) {
       setError(errMsg(e));
     } finally {

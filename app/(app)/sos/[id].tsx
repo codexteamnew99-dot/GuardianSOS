@@ -204,8 +204,7 @@ export default function ActiveSos() {
       watcher.current = null;
       const updated = await resolveSos(event.id);
       setEvent(updated);
-      if (Platform.OS === "web") router.replace("/home");
-      else Alert.alert("SOS resolved", "Location sharing has stopped.", [{ text: "OK", onPress: () => router.replace("/home") }]);
+      router.replace("/home");
     } catch (e) {
       setError(errMsg(e));
     } finally {
